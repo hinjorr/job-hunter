@@ -2,3 +2,5 @@ __pycache__/
 .venv/
 digest.md
 .env
+run.log
+jobs.db

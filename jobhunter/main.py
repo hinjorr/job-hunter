@@ -1,4 +1,5 @@
 import logging
+import os
 
 import yaml
 
@@ -9,7 +10,19 @@ from .scoring import score_job
 from .sources import fetch_all
 
 
+def load_env(path=".env"):
+    """Minimal .env loader (KEY=VALUE per line) so local runs need no extra packages."""
+    if not os.path.exists(path):
+        return
+    for line in open(path):
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            k, v = line.split("=", 1)
+            os.environ.setdefault(k.strip(), v.strip().strip('"\''))
+
+
 def run(config_path="config.yaml", db_path="jobs.db"):
+    load_env()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     cfg = yaml.safe_load(open(config_path))
     db = DB(db_path)
