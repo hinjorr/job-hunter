@@ -1,0 +1,32 @@
+# Keyword profiles: a posting must match at least one keyword to be considered.
+profiles:
+  dotnet:
+    keywords: [".net", "dotnet", "c#", "asp.net", "blazor", "azure functions"]
+  ai:
+    keywords: ["llm", "generative ai", "machine learning", "ai engineer", "rag", "openai", "langchain", "ai agent"]
+  erp_ai:
+    keywords: ["erp", "dynamics 365", "d365", "copilot", "sap", "netsuite", "odoo"]
+  business_central:
+    keywords: ["business central", "dynamics nav", "navision", "al language", "al developer", "dynamics 365 bc"]
+  finops:
+    keywords: ["finops", "cloud cost", "cost optimization", "cloud financial", "azure cost"]
+
+# Free-text description of what you want; Gemini scores each posting against it.
+candidate_summary: |
+  Senior developer looking for remote .NET, AI, AI-in-ERP, Microsoft Dynamics 365
+  Business Central and FinOps roles. Open to full-time, contract and freelance clients.
+
+min_score: 60          # 0-100, only jobs at/above this go in the digest
+max_new_per_run: 40    # cap on Gemini calls per run (free-tier friendly)
+gemini_model: gemini-2.5-flash
+
+sources:
+  remoteok: true
+  weworkremotely: true
+  remotive: true
+  hn_hiring: true
+  reddit: true         # best effort; Reddit often blocks datacenter IPs
+  reddit_feeds:
+    - https://www.reddit.com/r/forhire/search.rss?q=%22business+central%22+OR+%22.net%22+OR+%22dynamics%22&restrict_sr=on&sort=new
+    - https://www.reddit.com/r/dotnet/search.rss?q=hiring&restrict_sr=on&sort=new
+    - https://www.reddit.com/r/dynamics365/search.rss?q=hiring&restrict_sr=on&sort=new
