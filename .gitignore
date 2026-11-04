@@ -4,6 +4,6 @@ digest.md
 .env
 jobs.db
 .linkedin-profile/
-jobs.db.bak
+jobs.db.bak*
 blocked/
 schedule.json

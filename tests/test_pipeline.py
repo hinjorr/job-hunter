@@ -20,6 +20,7 @@ def test_every_job_gets_a_status_and_reason(tmp_path, monkeypatch):
 
     def fake_score(j, cfg):
         j.score, j.reason = 70, "fit"
+        return True
     monkeypatch.setattr(m, "score_job", fake_score)
 
     m.run(config_path=cfg_path, db_path=str(tmp_path / "t.db"))
@@ -47,6 +48,7 @@ def test_repeats_copy_the_score_without_scoring_again(tmp_path, monkeypatch):
     def fake_score(j, cfg):
         scored.append(j.url)
         j.score, j.reason = 80, "fit"
+        return True
     monkeypatch.setattr(m, "score_job", fake_score)
     sent = []
     monkeypatch.setattr(m, "send_all", sent.append)

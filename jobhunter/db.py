@@ -1,6 +1,8 @@
 import re
 import sqlite3
 
+from .workplace import NOT_REMOTE
+
 KEYWORD_MISS = "no Business Central / F&O / Dynamics keyword in title or description"
 REPEAT = "REPEAT"  # reason prefix for jobs that copied the score of an identical posting
 
@@ -41,18 +43,21 @@ class DB:
         self._twins = None  # job_key -> fully scored row, rebuilt after each save
 
     def scored_twin(self, title, company):
-        """An already fully-read job with the same title and company, as a dict, or None."""
+        """An already fully-read job with the same title and company, as a dict, or None.
+        Counts scored jobs and jobs read but ruled out as not remote (NOT REMOTE)."""
         key = job_key(title, company)
         if not key:
             return None
         if self._twins is None:
             self._twins = {}
-            cur = self.c.execute("SELECT url, title, company, score, reason, profiles FROM jobs "
-                                 "WHERE status='scored' ORDER BY first_seen")
-            for url, t, c, score, reason, profiles in cur:
+            cur = self.c.execute("SELECT url, title, company, score, reason, profiles, status FROM jobs "
+                                 "WHERE status='scored' OR (status='skipped' AND reason LIKE ?) ORDER BY first_seen",
+                                 (NOT_REMOTE + "%",))
+            for url, t, c, score, reason, profiles, status in cur:
                 k = job_key(t, c)
                 if k and k not in self._twins:
-                    self._twins[k] = {"url": url, "score": score, "reason": reason or "", "profiles": profiles or ""}
+                    self._twins[k] = {"url": url, "score": score, "reason": reason or "", "profiles": profiles or "",
+                                      "status": status}
         return self._twins.get(key)
 
     def copy_twin(self, j) -> bool:
@@ -61,7 +66,7 @@ class DB:
         if not twin:
             return False
         reason = twin["reason"]
-        j.score, j.status = twin["score"], "scored"
+        j.score, j.status = twin["score"], twin["status"]
         j.profiles = [p for p in twin["profiles"].split(",") if p]
         j.reason = reason if reason.startswith(REPEAT) else (
             f"{REPEAT}: same title and company as a job already read, so not opened or scored again "
@@ -88,5 +93,5 @@ class DB:
                        (j.url, j.source, j.title, j.company, j.score, j.reason, ",".join(j.profiles),
                         j.posted, j.status))
         self.c.commit()
-        if j.status == "scored":
+        if j.status in ("scored", "skipped"):
             self._twins = None

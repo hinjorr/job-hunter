@@ -27,7 +27,8 @@ candidate_summary: |
 
 min_score: 60         # 0-100, only jobs at/above this go in the digest
 max_new_per_run: 300   # cap on full Gemini scores per run (extra are queued for the next run)
-max_age_days: 30       # drop postings older than this (when the source gives a date)
+workplace_filter: true # skip jobs that are on-site/hybrid outside Pakistan (from the posting text and Gemini)
+max_age_days: 30      # drop postings older than this (when the source gives a date)
 max_card_scores_per_run: 60  # Gemini scores for matching cards not opened (title/company/location only)
 gemini_model: gemini-3.5-flash-lite
 

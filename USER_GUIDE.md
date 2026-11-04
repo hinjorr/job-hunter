@@ -125,6 +125,7 @@ Open `config.yaml` in a text editor. Changes apply on the next **Re-run**; no re
 | `candidate_summary` | Your profile in plain words. Gemini scores every job against this, so keep it accurate. |
 | `min_score` | Minimum score for the digest and the default score filter (default 60). |
 | `max_new_per_run` | Most jobs Gemini fully scores in one run (extra ones are queued). |
+| `workplace_filter` | `true` (default) skips jobs that are on-site or hybrid outside Pakistan, listed as SKIPPED with a reason starting "NOT REMOTE". Clear cases are caught from the posting text before Gemini (no request used); otherwise Gemini decides after reading the posting. Logged-out LinkedIn doesn't show the On-site/Remote label, so this reads what the posting says. `false` turns it off. |
 | `max_age_days` | Jobs posted longer ago than this are skipped (default 30). |
 | `max_card_scores_per_run` | Most LinkedIn cards that get a preliminary score in one run. |
 | `gemini_model` | The Gemini model. If Google retires it (you'll see a 404 error), change it to a current "flash-lite" model. |

@@ -9,8 +9,10 @@ from .db import DB, KEYWORD_MISS
 from .filtering import match_profiles
 from .notify import build_digest, send_all
 from .progress import NULL
+from . import scoring
 from .scoring import score_job
 from .sources import LABELS, enabled, fetch_all
+from .workplace import onsite_elsewhere, skip_reason
 
 
 def load_env(path=".env"):
@@ -29,6 +31,7 @@ def run(config_path="config.yaml", db_path="jobs.db", progress=NULL):
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     cfg = yaml.safe_load(open(config_path))
     db = DB(db_path)
+    scoring.new_run()  # the Gemini daily quota may have reset since the last run
     progress.set_stages([(f"fetch:{n}", f"Fetch: {LABELS.get(n, n)}") for n in enabled(cfg)] + [
         ("filter", "Filter: already seen, age, keywords"),
         ("score", "Score with Gemini"),
@@ -39,14 +42,33 @@ def run(config_path="config.yaml", db_path="jobs.db", progress=NULL):
     oldest = (datetime.date.today() - datetime.timedelta(days=max_age)).isoformat()
     counts, good = collections.Counter(), []
 
+    workplace_filter = cfg.get("workplace_filter", True)
+
+    def score_text():
+        text = f"{counts['scored']} scored, {counts['prelim']} preliminary, {len(good)} at {min_score}+"
+        if counts["not remote"]:
+            text += f"; {counts['not remote']} skipped as on-site/hybrid outside Pakistan"
+        if counts["waiting"]:
+            text += f"; {counts['waiting']} waiting for Gemini" + (
+                " (daily free limit reached)" if scoring.daily_limit_hit() else "")
+        return text
+
     def score(j, status):
-        score_job(j, cfg)
-        j.status = status
-        counts[status] += 1
-        if j.score >= min_score:
-            good.append(j)
-        progress.update("score", "running", f"{counts['scored']} scored, {counts['prelim']} preliminary, "
-                                            f"{len(good)} at {min_score}+")
+        """Score with Gemini. If it can't, queue the job for the next run instead of guessing a score."""
+        if not score_job(j, cfg):
+            j.score, j.status = 0, "queued"
+            j.reason = f"waiting for Gemini: {j.reason}; scored next run"
+            counts["waiting"] += 1
+        elif status == "scored" and workplace_filter and j.remote_ok == "no":
+            # Gemini read the full posting: on-site/hybrid abroad or limited to other countries' residents.
+            j.status, j.reason = "skipped", skip_reason(f"Gemini: {j.reason}")
+            counts["not remote"] += 1
+        else:
+            j.status = status
+            counts[status] += 1
+            if j.score >= min_score:
+                good.append(j)
+        progress.update("score", "running", score_text())
 
     def handle(name, jobs):
         """Filter, save and score one source's jobs as soon as it's fetched, so the UI fills in during the run.
@@ -67,7 +89,8 @@ def run(config_path="config.yaml", db_path="jobs.db", progress=NULL):
                     j.description = "(Only the job card was read: title, company, location. No description.)"
                     score(j, "prelim")
                     j.description = ""
-                    j.reason = f"PRELIMINARY, from the listing only ({note}). Gemini: {j.reason}"
+                    if j.status == "prelim":
+                        j.reason = f"PRELIMINARY, from the listing only ({note}). Gemini: {j.reason}"
                 else:
                     j.reason += f"; over the card-scoring limit ({card_cap}, max_card_scores_per_run)"
                     counts["queued"] += 1
@@ -78,9 +101,13 @@ def run(config_path="config.yaml", db_path="jobs.db", progress=NULL):
                 counts["skipped"] += 1
             else:
                 j.profiles = match_profiles(j, cfg)
+                onsite = workplace_filter and onsite_elsewhere(j)
                 if not j.profiles:
                     j.status, j.reason = "skipped", KEYWORD_MISS
                     counts["skipped"] += 1
+                elif onsite:  # clearly on-site/hybrid abroad: no Gemini request spent on it
+                    j.status, j.reason = "skipped", skip_reason(f"the posting says “{onsite}” and never mentions remote")
+                    counts["not remote"] += 1
                 elif counts["scored"] < full_cap:
                     score(j, "scored")
                 else:
@@ -98,8 +125,7 @@ def run(config_path="config.yaml", db_path="jobs.db", progress=NULL):
     progress.update("filter", "done", f"{counts['skipped']} skipped, {counts['queued']} queued, "
                                       f"{counts['already seen']} already seen, "
                                       f"{counts['repeat']} repeats of jobs already read (not re-scored)")
-    progress.update("score", "done", f"{counts['scored']} scored, {counts['prelim']} preliminary (card only), "
-                                     f"{len(good)} at {min_score}+")
+    progress.update("score", "warn" if counts["waiting"] else "done", score_text())
 
     progress.update("digest", "running")
     digest = build_digest(good)
