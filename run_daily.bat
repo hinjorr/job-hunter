@@ -1,3 +1,3 @@
 @echo off
 cd /d "%~dp0"
-python -m jobhunter.main >> run.log 2>&1
+".venv\Scripts\python.exe" -m jobhunter.main >> run.log 2>&1

@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Job Hunter</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --text: #1b1f24; --muted: #5f6b7a; --line: #e3e7ec;
+    --accent: #2563eb; --accent-text: #ffffff;
+    --ok: #15803d; --warn: #b45309; --bad: #b91c1c; --run: #2563eb;
+    --s-hi: #dcfce7; --s-hi-t: #166534; --s-mid: #dbeafe; --s-mid-t: #1e40af;
+    --s-lo: #fef3c7; --s-lo-t: #92400e; --s-none: #eef0f3; --s-none-t: #5f6b7a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --card: #171b21; --text: #e6e9ee; --muted: #9aa5b4; --line: #2a313a;
+      --accent: #3b82f6; --ok: #4ade80; --warn: #fbbf24; --bad: #f87171; --run: #60a5fa;
+      --s-hi: #14532d; --s-hi-t: #bbf7d0; --s-mid: #1e3a8a; --s-mid-t: #bfdbfe;
+      --s-lo: #78350f; --s-lo-t: #fde68a; --s-none: #262c35; --s-none-t: #9aa5b4;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 16px 48px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  h1 { font-size: 20px; margin: 0; }
+  .sub { color: var(--muted); font-size: 13px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+  .card h2 { font-size: 15px; margin: 0 0 10px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  button.primary { background: var(--accent); color: var(--accent-text); border: 0; border-radius: 8px;
+                   padding: 9px 16px; font: inherit; font-weight: 600; cursor: pointer; }
+  button.primary:disabled { opacity: .55; cursor: default; }
+  .runline { color: var(--muted); font-size: 13px; }
+  .runline.err { color: var(--bad); }
+  ol.stages { list-style: none; margin: 0; padding: 0; }
+  ol.stages li { display: grid; grid-template-columns: 22px minmax(150px, 230px) 1fr; gap: 8px; padding: 7px 0;
+                 border-top: 1px solid var(--line); align-items: start; }
+  ol.stages li:first-child { border-top: 0; }
+  .ico { width: 16px; height: 16px; margin-top: 2px; border-radius: 50%; display: inline-flex; align-items: center;
+         justify-content: center; font-size: 11px; font-weight: 700; }
+  .pending .ico { border: 2px solid var(--line); }
+  .running .ico { border: 2px solid var(--run); border-top-color: transparent; animation: spin .8s linear infinite; }
+  .done .ico { background: var(--ok); color: var(--card); }
+  .warn .ico { background: var(--warn); color: var(--card); }
+  .failed .ico { background: var(--bad); color: var(--card); }
+  .done .ico::after { content: "\2713"; } .warn .ico::after { content: "!"; } .failed .ico::after { content: "\2715"; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .stage-label { font-weight: 500; }
+  .pending .stage-label, .pending .stage-detail { color: var(--muted); }
+  .stage-detail { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+  .running .stage-detail { color: var(--text); }
+  details.log { margin-top: 10px; }
+  details.log summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  details.log pre { max-height: 240px; overflow: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+                    padding: 10px; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0 0; }
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; align-items: center; }
+  .toolbar input[type=search], .toolbar select { font: inherit; padding: 7px 10px; border: 1px solid var(--line);
+                    border-radius: 8px; background: var(--card); color: var(--text); }
+  .toolbar input[type=search] { flex: 1 1 220px; min-width: 0; }
+  .toolbar label { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); font-size: 13px; }
+  .count { color: var(--muted); font-size: 13px; font-weight: 400; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  td { padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td.score { width: 56px; }
+  .badge { display: inline-block; min-width: 38px; text-align: center; padding: 2px 8px; border-radius: 999px; font-weight: 700; font-size: 13px; }
+  .b-hi { background: var(--s-hi); color: var(--s-hi-t); } .b-mid { background: var(--s-mid); color: var(--s-mid-t); }
+  .b-lo { background: var(--s-lo); color: var(--s-lo-t); } .b-none { background: var(--s-none); color: var(--s-none-t); }
+  a.title { color: var(--accent); font-weight: 600; text-decoration: none; }
+  a.title:hover { text-decoration: underline; }
+  .meta { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .reason { color: var(--muted); font-size: 13px; }
+  .pill { display: inline-block; padding: 2px 7px; border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: .03em; }
+  .p-queued { background: var(--s-lo); color: var(--s-lo-t); }
+  .p-skipped { background: var(--s-none); color: var(--s-none-t); }
+  details.rules { margin-bottom: 10px; }
+  details.rules summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  details.rules ul { margin: 6px 0 0; padding-left: 20px; color: var(--muted); font-size: 13px; }
+  details.rules code { font-size: 12px; }
+  .new { display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 700; color: var(--ok); }
+  .empty { color: var(--muted); padding: 24px 8px; text-align: center; }
+  @media (max-width: 720px) {
+    ol.stages li { grid-template-columns: 22px 1fr; }
+    .stage-detail { grid-column: 2; }
+    thead { display: none; }
+    tr { display: grid; grid-template-columns: 56px 1fr; border-bottom: 1px solid var(--line); padding: 8px 0; }
+    td { border: 0; padding: 4px 8px; }
+    td.reason-cell, td.found-cell { grid-column: 2; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Job Hunter</h1>
+      <div class="sub">Business Central &amp; Dynamics 365 Finance and Operations</div>
+    </div>
+    <button class="primary" id="rerun">Re-run</button>
+  </header>
+
+  <section class="card">
+    <h2>Progress <span class="runline" id="runline">Loading…</span></h2>
+    <ol class="stages" id="stages"></ol>
+    <details class="log"><summary>Log</summary><pre id="log">No log yet.</pre></details>
+  </section>
+
+  <section class="card">
+    <h2>Jobs <span class="count" id="count"></span></h2>
+    <details class="rules"><summary>How jobs are picked</summary><div id="rules"></div></details>
+    <div class="toolbar">
+      <input type="search" id="q" placeholder="Search title, company, reason…">
+      <label>Status <select id="status"></select></label>
+      <label>Source <select id="src"></select></label>
+      <label>Score <select id="min" title="Minimum score (scored jobs only)"></select></label>
+      <label><input type="checkbox" id="newonly"> New in last run</label>
+    </div>
+    <table>
+      <thead><tr><th>Score</th><th>Job</th><th>Why (Gemini's reason, or why it was skipped/queued)</th><th>Posted / found</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </section>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+const safeUrl = u => /^https?:\/\//i.test(u || "") ? u : "#";
+const st = { jobs: [], minSet: false, status: null, wasRunning: false, polls: 0 };
+
+function fmtDur(sec) {
+  sec = Math.max(0, Math.round(sec));
+  const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60;
+  return (h ? h + "h " : "") + (h || m ? m + "m " : "") + s + "s";
+}
+function fmtClock(epoch) {
+  return new Date(epoch * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+function fmtFound(utc) {  // "YYYY-MM-DD HH:MM:SS" in UTC from SQLite
+  const d = new Date(utc.replace(" ", "T") + "Z");
+  return isNaN(d) ? utc : d.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+function badge(j) {
+  if (j.status && !["scored", "prelim"].includes(j.status))
+    return `<span class="pill p-${esc(j.status)}">${esc(j.status.toUpperCase())}</span>`;
+  const score = j.score ?? 0;
+  const c = score >= 80 ? "b-hi" : score >= 60 ? "b-mid" : score >= 40 ? "b-lo" : "b-none";
+  return `<span class="badge ${c}">${esc(score)}</span>` +
+    (j.status === "prelim" ? `<div><span class="pill p-queued" title="Scored from the search card only; opened and re-scored in a later run">PRELIM</span></div>` : "");
+}
+function fillSelect(sel, items, keep) {  // items: [[value, label], ...]
+  const cur = sel.options.length ? sel.value : keep;  // first fill: use the default
+  sel.innerHTML = items.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("");
+  sel.value = items.some(([v]) => v === cur) ? cur : keep;
+}
+function renderRules(r) {
+  const kw = Object.entries(r.keywords).map(([k, v]) => `<b>${esc(k)}</b>: ${v.map(esc).join(", ")}`).join("<br>");
+  const lim = (v, all) => v ? esc(v) : all;
+  const br = Object.entries(r.browser).map(([n, o]) =>
+    `<li><b>${esc(n)}</b>: runs ${lim(o.max_queries_per_run, "every")} configured search${o.max_queries_per_run === 1 ? "" : "es"} per run and loads all result pages; opens ${lim(o.max_jobs_per_query, "every")} matching posting${o.max_jobs_per_query === 1 ? "" : "s"} per search (${lim(o.max_jobs_per_run, "no")} limit per run), plus jobs left queued/preliminary by earlier runs. Only postings whose <i>title</i> has a keyword are opened; the rest are listed as SKIPPED. A real CAPTCHA/checkpoint stops the site and QUEUES the rest.</li>`).join("");
+  $("#rules").innerHTML = `<ul>
+    <li>Every posting a source returns is listed here with a status: <b>scored</b>, <b>skipped</b> (with why) or <b>queued</b> (not done yet, retried next run).</li>
+    <li>Skipped if it was posted more than ${esc(r.max_age_days)} days ago, or if neither its title nor description has one of these keywords:<br>${kw}</li>
+    <li>Up to ${esc(r.max_new_per_run)} jobs per run are scored by Gemini (0–100) against your profile from their full description; any extra are QUEUED.</li>
+    <li>Matching cards a browser source didn't open get a <b>PRELIM</b> score from the card alone (title, company, location), up to ${esc(r.max_card_scores_per_run)} per run. They're opened and fully re-scored when a later run picks them.</li>
+    <li>Each source is saved and scored as soon as it finishes, so this list fills in during a run.</li>
+    ${br}
+    <li>The digest only includes scored jobs at ${esc(r.min_score)}+.</li></ul>`;
+}
+
+async function loadJobs() {
+  const d = await (await fetch("/api/jobs")).json();
+  st.jobs = d.jobs;
+  if (!st.minSet) {
+    const opts = [...new Set([0, 40, d.min_score, 80])].sort((a, b) => a - b);
+    $("#min").innerHTML = opts.map(v => `<option value="${v}">${v ? "Score " + v + "+" : "All scores"}</option>`).join("");
+    $("#min").value = String(d.min_score);
+    st.minSet = true;
+  }
+  renderRules(d.rules);
+  const count = (key, val) => st.jobs.filter(j => j[key] === val).length;
+  const nScored = count("status", "scored"), nPrelim = count("status", "prelim");
+  fillSelect($("#status"), [["scored+prelim", `Scored + preliminary (${nScored + nPrelim})`],
+    ["scored", `Scored, fully read (${nScored})`], ["prelim", `Preliminary, card only (${nPrelim})`],
+    ["queued", `Queued (${count("status", "queued")})`], ["skipped", `Skipped (${count("status", "skipped")})`],
+    ["", `All (${st.jobs.length})`]], "scored+prelim");
+  const sources = [...new Set(st.jobs.map(j => j.source))].sort();
+  fillSelect($("#src"), [["", "All sources"], ...sources.map(s => [s, `${s} (${count("source", s)})`])], "");
+  renderJobs();
+}
+
+function renderJobs() {
+  const q = $("#q").value.trim().toLowerCase(), min = +$("#min").value, src = $("#src").value;
+  const status = $("#status").value;
+  const since = $("#newonly").checked && st.status && st.status.started_utc;
+  const lastStart = st.status && st.status.started_utc;
+  // The score filter only applies to scored jobs; skipped/queued ones have no score yet.
+  const hasScore = j => j.status === "scored" || j.status === "prelim";
+  const list = st.jobs.filter(j =>
+    (!status || (status === "scored+prelim" ? hasScore(j) : j.status === status)) &&
+    (!hasScore(j) || (j.score ?? 0) >= min) &&
+    (!src || j.source === src) && (!since || j.first_seen >= since) &&
+    (!q || [j.title, j.company, j.reason, j.profiles].join(" ").toLowerCase().includes(q)));
+  $("#count").textContent = `${list.length} of ${st.jobs.length}`;
+  $("#rows").innerHTML = list.length ? list.map(j => `
+    <tr>
+      <td class="score">${badge(j)}</td>
+      <td><a class="title" href="${esc(safeUrl(j.url))}" target="_blank" rel="noopener noreferrer">${esc(j.title)}</a>
+          ${lastStart && j.first_seen >= lastStart ? '<span class="new">NEW</span>' : ""}
+          <div class="meta">${esc(j.company || "Company n/a")} · ${esc(j.source)}${j.profiles ? " · " + esc(j.profiles.replaceAll(",", ", ")) : ""}</div></td>
+      <td class="reason-cell"><div class="reason">${esc(j.reason)}</div></td>
+      <td class="found-cell"><div class="meta">${j.posted ? "Posted " + esc(j.posted) + "<br>" : ""}Found ${esc(fmtFound(j.first_seen || ""))}</div></td>
+    </tr>`).join("")
+    : `<tr><td colspan="4" class="empty">${st.jobs.length ? "No jobs match these filters." : "No jobs yet. Press Re-run to start a hunt."}</td></tr>`;
+}
+
+function renderStatus() {
+  const s = st.status, line = $("#runline");
+  $("#rerun").disabled = !!s.running;
+  $("#rerun").textContent = s.running ? "Running…" : "Re-run";
+  line.classList.toggle("err", !!s.error);
+  if (s.running) line.textContent = `Running · started ${fmtClock(s.started)} · ${fmtDur(Date.now() / 1000 - s.started)} elapsed`;
+  else if (s.error) line.textContent = `Failed after ${fmtDur(s.finished - s.started)}: ${s.error}`;
+  else if (s.finished) line.textContent = `Last run finished ${fmtClock(s.finished)} · took ${fmtDur(s.finished - s.started)}`;
+  else line.textContent = "No run since the UI started. Press Re-run to start one.";
+  $("#stages").innerHTML = s.stages.map(x => `
+    <li class="${esc(x.state)}"><span class="ico"></span>
+      <span class="stage-label">${esc(x.label)}</span>
+      <span class="stage-detail">${esc(x.detail || ({ pending: "waiting", running: "in progress", done: "done" }[x.state] || ""))}</span></li>`).join("");
+  if (s.logs.length) {
+    const pre = $("#log"), atBottom = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 4;
+    pre.textContent = s.logs.join("\n");
+    if (atBottom) pre.scrollTop = pre.scrollHeight;
+  }
+}
+
+async function poll() {
+  try {
+    st.status = await (await fetch("/api/status")).json();
+    renderStatus();
+    // Reload the list when a run ends, and now and then while one is scoring.
+    if ((st.wasRunning && !st.status.running) || (st.status.running && ++st.polls % 5 === 0)) await loadJobs();
+    st.wasRunning = st.status.running;
+  } catch (e) {
+    $("#runline").textContent = "Can't reach the Job Hunter server. Is it still running?";
+    $("#runline").classList.add("err");
+  }
+  setTimeout(poll, st.status && st.status.running ? 1500 : 8000);
+}
+
+$("#rerun").addEventListener("click", async () => {
+  $("#rerun").disabled = true;
+  const r = await fetch("/api/run", { method: "POST" });
+  if (!r.ok) alert((await r.json()).error || "Could not start a run.");
+  st.status = await (await fetch("/api/status")).json();
+  st.wasRunning = st.status.running;
+  renderStatus();
+});
+["#q", "#min", "#src", "#status", "#newonly"].forEach(id => $(id).addEventListener("input", renderJobs));
+setInterval(() => st.status && st.status.running && renderStatus(), 1000);  // tick the elapsed clock
+
+loadJobs().then(poll);
+</script>
+</body>
+</html>

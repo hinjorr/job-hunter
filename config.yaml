@@ -1,32 +1,65 @@
 # Keyword profiles: a posting must match at least one keyword to be considered.
 profiles:
-  dotnet:
-    keywords: [".net", "dotnet", "c#", "asp.net", "blazor", "azure functions"]
-  ai:
-    keywords: ["llm", "generative ai", "machine learning", "ai engineer", "rag", "openai", "langchain", "ai agent"]
-  erp_ai:
-    keywords: ["erp", "dynamics 365", "d365", "copilot", "sap", "netsuite", "odoo"]
   business_central:
-    keywords: ["business central", "dynamics nav", "navision", "al language", "al developer", "dynamics 365 bc"]
-  finops:
-    keywords: ["finops", "cloud cost", "cost optimization", "cloud financial", "azure cost"]
+    keywords: ["business central", "dynamics nav", "navision", "al language", "al developer", "al extension",
+               "al extensions", "c/al", "dynamics 365 bc", "d365 bc", "dynamics bc", "bc 365", "d365bc", "bc developer", "bc consultant", "nav developer"]
+  finance_operations:
+    keywords: ["finance and operations", "finance & operations", "d365 f&o", "d365fo", "d365 fo", "f&o",
+               "x++", "dynamics ax", "ax 2012", "dynamics 365 finance", "dynamics 365 supply chain",
+               "d365 finance", "d365 scm"]
+  dynamics_365:
+    keywords: ["dynamics 365", "d365", "microsoft dynamics", "dynamics erp"]
 
 # Free-text description of what you want; Gemini scores each posting against it.
 candidate_summary: |
-  Senior developer looking for remote .NET, AI, AI-in-ERP, Microsoft Dynamics 365
-  Business Central and FinOps roles. Open to full-time, contract and freelance clients.
+  Senior Solution Engineer (4+ years) specialising in Microsoft Dynamics 365 Finance & Operations
+  (X++: Chain of Command, data entities, batch jobs, SSRS, Electronic Reporting, DMF) and
+  Dynamics 365 Business Central (AL extensions, NAV to BC upgrades, GP to BC migration, APIs/OData).
+  Strong in D365 integrations (Azure Functions, Logic Apps, Service Bus, Power Automate, EDI, bank
+  files), solution design (FDD/IDD/TDD), Azure DevOps build/release management, and AI in ERP
+  (MCP servers, Copilot / Copilot Studio for D365). 15+ client projects for US, Canada and UK.
+  Based in Karachi, Pakistan: looking for remote D365 F&O or Business Central developer/technical
+  consultant/solution architect roles, full-time, contract or freelance.
+  Score low: Dynamics 365 CE/CRM/Sales-only roles, purely functional roles with no development,
+  non-Microsoft ERPs (SAP, Oracle, NetSuite), general .NET/web roles, and on-site-only roles
+  outside Pakistan.
 
 min_score: 60          # 0-100, only jobs at/above this go in the digest
-max_new_per_run: 40    # cap on Gemini calls per run (free-tier friendly)
-gemini_model: gemini-2.5-flash
+max_new_per_run: 300   # cap on full Gemini scores per run (extra are queued for the next run)
+max_age_days: 30       # drop postings older than this (when the source gives a date)
+max_card_scores_per_run: 60  # Gemini scores for matching cards not opened (title/company/location only)
+gemini_model: gemini-3.5-flash-lite
 
 sources:
   remoteok: true
   weworkremotely: true
   remotive: true
+  remotive_terms: ["business central", "dynamics 365", "dynamics", "d365", "x++", "navision", "erp"]
   hn_hiring: true
   reddit: true         # best effort; Reddit often blocks datacenter IPs
   reddit_feeds:
-    - https://www.reddit.com/r/forhire/search.rss?q=%22business+central%22+OR+%22.net%22+OR+%22dynamics%22&restrict_sr=on&sort=new
-    - https://www.reddit.com/r/dotnet/search.rss?q=hiring&restrict_sr=on&sort=new
-    - https://www.reddit.com/r/dynamics365/search.rss?q=hiring&restrict_sr=on&sort=new
+    - https://www.reddit.com/r/forhire/search.rss?q=%22business+central%22+OR+%22dynamics+365%22+OR+%22d365%22+OR+%22navision%22&restrict_sr=on&sort=new&t=month
+    - https://www.reddit.com/r/dynamics365/search.rss?q=hiring+OR+job+OR+freelance&restrict_sr=on&sort=new&t=month
+    - https://www.reddit.com/r/businesscentral/search.rss?q=hiring+OR+job+OR+freelance&restrict_sr=on&sort=new&t=month
+    - https://www.reddit.com/r/Dynamics365FO/search.rss?q=hiring+OR+job+OR+freelance&restrict_sr=on&sort=new&t=month
+  linkedin: true       # real Chrome window, human-paced; stops on any checkpoint/CAPTCHA
+  linkedin_options:
+    profile_dir: .linkedin-profile   # its own Chrome profile; sign in once with `python -m jobhunter.linkedin --login`, or stay logged out
+    queries:
+      - Business Central developer
+      - Business Central technical consultant
+      - Dynamics 365 Finance and Operations developer
+      - D365 F&O technical consultant
+      - Dynamics 365 X++ developer
+      - Dynamics NAV developer
+      - Dynamics 365 solution architect
+    location: Worldwide
+    remote_only: true
+    posted_within_hours: 24
+    max_queries_per_run: 0     # 0 = run every query above
+    max_jobs_per_query: 0      # postings opened per search; 0 = all matching
+    max_jobs_per_run: 0        # 0 = no limit
+    max_cards_per_search: 300  # stop loading more result pages after this many cards
+    revisit_pending: true      # reopen jobs left queued/preliminary by earlier runs
+    pace: 0.5                  # multiplies every pause; 1.0 = slow and person-like, 0.3 = fast
+    headless: false            # a visible window looks like normal use; headless is easier to detect
