@@ -4,3 +4,6 @@ digest.md
 .env
 run.log
 jobs.db
+.linkedin-profile/
+jobs.db.bak
+blocked/

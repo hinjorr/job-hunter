@@ -1,36 +1,24 @@
 # job-hunter
 
-Daily job/client finder: pulls postings from RemoteOK, We Work Remotely, Remotive,
-HN "Who is hiring" and Reddit, keyword-filters them against your profiles
-(.NET, AI, AI-in-ERP, Business Central, FinOps), scores them with Gemini, and sends a digest.
+Finds Microsoft Dynamics 365 **Business Central** and **Finance & Operations (X++)** jobs. Pulls postings from
+LinkedIn (real Chrome window, logged out), RemoteOK, We Work Remotely, Remotive, HN "Who is hiring" and Reddit,
+filters them by keyword, scores each with Gemini against your profile, and shows them in a local web page with
+live run progress. Every posting is listed as scored, preliminary, queued or skipped, with the reason.
 
-## Setup
-1. Repo → Settings → Secrets and variables → Actions → add:
-   - `GEMINI_API_KEY` (free key from https://aistudio.google.com/apikey)
-   - `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` (optional; create a bot with @BotFather)
-2. Actions tab → **job-hunt** → *Run workflow* to test. It then runs daily.
-3. The digest is also uploaded as a workflow artifact (`digest.md`).
+**Installation and usage: see [USER_GUIDE.md](USER_GUIDE.md).**
 
-Tune keywords, `min_score` and sources in `config.yaml`.
-
-## Local run
+Quick start (Windows):
 ```bash
+git clone https://github.com/hinjorr/job-hunter
+cd job-hunter
+python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
-GEMINI_API_KEY=... python -m jobhunter.main
-python -m pytest
+copy .env.example .env
+start_ui.bat
 ```
-Without `GEMINI_API_KEY` it falls back to a simple keyword-based score.
+Put your Gemini key (free: https://aistudio.google.com/apikey) in `.env` before the first run, then press
+**Re-run** on http://127.0.0.1:8765. Tune keywords, your profile summary and sources in `config.yaml`.
 
-## Run on your own PC (no GitHub Actions needed)
-```bash
-git clone <repo> && cd job-hunter
-python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env        # then fill in GEMINI_API_KEY (and Telegram if wanted)
-python -m jobhunter.main    # digest printed + saved to digest.md
-```
-Schedule it daily:
-- **Windows:** `schtasks /create /tn JobHunter /tr "C:\path\to\job-hunter\run_daily.bat" /sc daily /st 09:00`
-- **Mac/Linux:** `crontab -e` → `0 9 * * * cd /path/to/job-hunter && .venv/bin/python -m jobhunter.main >> run.log 2>&1`
-
-Running from your home IP also avoids the datacenter blocks that GitHub's servers hit.
+`.github/workflows/hunt.yml` is an older optional cloud run; it predates the LinkedIn source, which needs a
+desktop Chrome, so set `linkedin: false` if you use it.

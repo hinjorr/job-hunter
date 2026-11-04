@@ -13,13 +13,14 @@ def test_matches_business_central():
 
 
 def test_word_boundaries():
-    # "rag" must not match inside "storage"; "sap" not inside "sapphire"
-    j = Job("t", "Storage engineer", "Sapphire", "http://x", "")
+    # "al developer" must not match inside "global developer"; ".NET" roles are out of scope
+    j = Job("t", "Global developer (.NET)", "Acme", "http://x", "")
     assert match_profiles(j, CFG) == []
 
 
-def test_dotnet():
-    assert "dotnet" in match_profiles(Job("t", "Backend (.NET)", "A", "http://x"), CFG)
+def test_finance_operations():
+    j = Job("t", "D365 F&O Technical Consultant", "A", "http://x", "X++ and data entities")
+    assert "finance_operations" in match_profiles(j, CFG)
 
 
 def test_digest_sorted():
