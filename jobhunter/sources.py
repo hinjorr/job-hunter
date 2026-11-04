@@ -127,9 +127,9 @@ def reddit(cfg):
 
 
 @_safe
-def linkedin(cfg, seen=None, on_step=None, revisit=None):
+def linkedin(cfg, seen=None, on_step=None, revisit=None, known=None):
     from . import linkedin as li  # imported lazily: needs Playwright and Chrome
-    jobs = li.search(cfg, seen, on_step, revisit)
+    jobs = li.search(cfg, seen, on_step, revisit, known)
     if li.last_block:
         ERRORS["linkedin"] = (li.last_block if li.last_block.startswith("stopped early")
                               else "stopped at a sign-in wall/CAPTCHA (not bypassed); screenshot in blocked/")
@@ -152,9 +152,10 @@ def enabled(cfg) -> list:
     return [n for n in REGISTRY if cfg["sources"].get(n)]
 
 
-def fetch_all(cfg, seen=None, progress=NULL, on_source=None, pending=None) -> list:
+def fetch_all(cfg, seen=None, progress=NULL, on_source=None, pending=None, known=None) -> list:
     """Fetch every enabled source in turn; on_source(name, jobs) runs right after each one.
-    pending(source) lists that source's jobs left queued/preliminary earlier, for browser sources to revisit."""
+    pending(source) lists that source's jobs left queued/preliminary earlier, for browser sources to revisit.
+    known(title, company) is True when a job with that title and company was already read (not reopened)."""
     jobs = []
     for name in enabled(cfg):
         key = f"fetch:{name}"
@@ -162,7 +163,7 @@ def fetch_all(cfg, seen=None, progress=NULL, on_source=None, pending=None) -> li
         if name in BROWSER:
             # Browser sources get the seen-check so they don't click postings already known.
             got = REGISTRY[name](cfg, seen, lambda d, k=key: progress.update(k, detail=d),
-                                 pending(name) if pending else None)
+                                 pending(name) if pending else None, known)
         else:
             got = REGISTRY[name](cfg)
         log.info("%s: %d postings", name, len(got))

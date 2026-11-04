@@ -1,4 +1,4 @@
-"""Local web UI: the job list, a Re-run button and live stage-by-stage progress.
+"""Local web UI: the job list, a Re-run button, automatic runs every N hours and live progress.
 
     python -m jobhunter.web            then open http://127.0.0.1:8765
     python -m jobhunter.web --no-browser
@@ -11,9 +11,9 @@ import webbrowser
 from pathlib import Path
 
 import yaml
-from flask import Flask, jsonify, send_file
+from flask import Flask, jsonify, request, send_file
 
-from . import main
+from . import main, scheduler
 from .db import DB
 from .progress import Progress
 
@@ -23,6 +23,7 @@ HOST, PORT = "127.0.0.1", 8765
 app = Flask(__name__)
 P = Progress()
 _start_lock = threading.Lock()
+SCHED = scheduler.Schedule(ROOT / "schedule.json")
 
 
 class _ToProgress(logging.Handler):
@@ -46,17 +47,38 @@ def index():
 
 @app.get("/api/status")
 def status():
-    return jsonify(P.snapshot())
+    snap = P.snapshot()
+    snap["next_run"] = SCHED.next_run()
+    snap["schedule"] = SCHED.settings()
+    return jsonify(snap)
+
+
+def _start():
+    """Start a run in the background; False if one is already going. Used by Re-run and the schedule."""
+    with _start_lock:
+        if P.running:
+            return False
+        P.start()
+        SCHED.mark_run()
+        threading.Thread(target=_run, daemon=True).start()
+    return True
 
 
 @app.post("/api/run")
 def rerun():
-    with _start_lock:
-        if P.running:
-            return jsonify(error="A run is already in progress."), 409
-        P.start()
-        threading.Thread(target=_run, daemon=True).start()
+    if not _start():
+        return jsonify(error="A run is already in progress."), 409
     return jsonify(ok=True)
+
+
+@app.post("/api/schedule")
+def set_schedule():
+    body = request.get_json(silent=True) or {}
+    try:
+        SCHED.update(body.get("enabled"), body.get("every_hours"))
+    except ValueError as e:
+        return jsonify(error=str(e)), 400
+    return jsonify(ok=True, next_run=SCHED.next_run(), schedule=SCHED.settings())
 
 
 @app.get("/api/jobs")
@@ -87,6 +109,7 @@ if __name__ == "__main__":
     logging.getLogger("werkzeug").setLevel(logging.WARNING)  # keep request noise out of the log
     url = f"http://{HOST}:{PORT}"
     print(f"Job Hunter UI: {url}")
+    threading.Thread(target=SCHED.loop, args=(_start, lambda: P.running), daemon=True, name="schedule").start()
     if "--no-browser" not in sys.argv:
         threading.Timer(1.0, webbrowser.open, [url]).start()
     app.run(host=HOST, port=PORT, threaded=True)

@@ -32,6 +32,11 @@
   button.primary { background: var(--accent); color: var(--accent-text); border: 0; border-radius: 8px;
                    padding: 9px 16px; font: inherit; font-weight: 600; cursor: pointer; }
   button.primary:disabled { opacity: .55; cursor: default; }
+  .actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  label.auto { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); font-size: 13px; }
+  label.auto select { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px;
+                      background: var(--card); color: var(--text); }
+  label.auto select:disabled { opacity: .55; }
   .runline { color: var(--muted); font-size: 13px; }
   .runline.err { color: var(--bad); }
   ol.stages { list-style: none; margin: 0; padding: 0; }
@@ -98,7 +103,13 @@
       <h1>Job Hunter</h1>
       <div class="sub">Business Central &amp; Dynamics 365 Finance and Operations</div>
     </div>
-    <button class="primary" id="rerun">Re-run</button>
+    <div class="actions">
+      <label class="auto" title="Runs a hunt by itself. Counted from the last run, including Re-run.">
+        <input type="checkbox" id="autoOn"> Run automatically every
+        <select id="every"></select>
+      </label>
+      <button class="primary" id="rerun">Re-run</button>
+    </div>
   </header>
 
   <section class="card">
@@ -137,6 +148,10 @@ function fmtDur(sec) {
 }
 function fmtClock(epoch) {
   return new Date(epoch * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+function fmtNext(epoch) {  // "06:00 PM" today, "tomorrow 09:00 AM" otherwise
+  const d = new Date(epoch * 1000);
+  return (d.toDateString() === new Date().toDateString() ? "" : "tomorrow ") + fmtClock(epoch);
 }
 function fmtFound(utc) {  // "YYYY-MM-DD HH:MM:SS" in UTC from SQLite
   const d = new Date(utc.replace(" ", "T") + "Z");
@@ -225,6 +240,9 @@ function renderStatus() {
   else if (s.error) line.textContent = `Failed after ${fmtDur(s.finished - s.started)}: ${s.error}`;
   else if (s.finished) line.textContent = `Last run finished ${fmtClock(s.finished)} · took ${fmtDur(s.finished - s.started)}`;
   else line.textContent = "No run since the UI started. Press Re-run to start one.";
+  if (!s.running) line.textContent += !s.next_run ? " · automatic runs off"
+    : s.next_run <= Date.now() / 1000 ? " · automatic run starting shortly" : ` · next automatic run ${fmtNext(s.next_run)}`;
+  renderSchedule(s.schedule);
   $("#stages").innerHTML = s.stages.map(x => `
     <li class="${esc(x.state)}"><span class="ico"></span>
       <span class="stage-label">${esc(x.label)}</span>
@@ -249,6 +267,26 @@ async function poll() {
   }
   setTimeout(poll, st.status && st.status.running ? 1500 : 8000);
 }
+
+function renderSchedule(sc) {
+  if (!sc) return;
+  const sel = $("#every");
+  if (!sel.options.length) sel.innerHTML = sc.choices.map(h => `<option value="${h}">${h} hours</option>`).join("");
+  if (document.activeElement !== sel) sel.value = String(sc.every_hours);
+  $("#autoOn").checked = sc.enabled;
+  sel.disabled = !sc.enabled;
+}
+
+async function saveSchedule() {
+  const body = { enabled: $("#autoOn").checked, every_hours: Number($("#every").value) };
+  const r = await fetch("/api/schedule", { method: "POST", headers: { "Content-Type": "application/json" },
+                                           body: JSON.stringify(body) });
+  if (!r.ok) alert((await r.json()).error || "Could not save the schedule.");
+  st.status = await (await fetch("/api/status")).json();
+  renderStatus();
+}
+$("#autoOn").addEventListener("change", saveSchedule);
+$("#every").addEventListener("change", saveSchedule);
 
 $("#rerun").addEventListener("click", async () => {
   $("#rerun").disabled = true;

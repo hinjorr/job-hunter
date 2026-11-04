@@ -18,7 +18,5 @@ copy .env.example .env
 start_ui.bat
 ```
 Put your Gemini key (free: https://aistudio.google.com/apikey) in `.env` before the first run, then press
-**Re-run** on http://127.0.0.1:8765. Tune keywords, your profile summary and sources in `config.yaml`.
-
-`.github/workflows/hunt.yml` is an older optional cloud run; it predates the LinkedIn source, which needs a
-desktop Chrome, so set `linkedin: false` if you use it.
+**Re-run** on http://127.0.0.1:8765, or tick **Run automatically every N hours** on that page. Tune keywords,
+your profile summary and sources in `config.yaml`. Digests can go to Discord (`DISCORD_WEBHOOK_URL` in `.env`).

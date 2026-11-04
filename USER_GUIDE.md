@@ -59,9 +59,15 @@ copy .env.example .env
 GEMINI_API_KEY=your-key-here
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_CHAT_ID=
+DISCORD_WEBHOOK_URL=
 ```
-The Telegram lines are optional; leave them empty for now. `.env` is git-ignored, so your key
+The Telegram and Discord lines are optional; leave them empty for now. `.env` is git-ignored, so your key
 is never committed.
+
+**Discord (optional).** To get the digest as a Discord message: in your own Discord server, open the
+channel's **Edit Channel → Integrations → Webhooks → New Webhook → Copy Webhook URL**, and paste it after
+`DISCORD_WEBHOOK_URL=`. The Discord app is not needed on the PC; Job Hunter posts to that link directly.
+Keep the link private: anyone who has it can post in that channel.
 
 **6. Check the install**
 ```bash
@@ -80,7 +86,7 @@ Double-click **`start_ui.bat`** in the `job-hunter` folder, or run:
 Your browser opens **http://127.0.0.1:8765**. Keep the black terminal window open while you use
 the page; closing it stops Job Hunter.
 
-Press **Re-run** to start a hunt.
+Press **Re-run** to start a hunt, or let it run by itself (see [8. Automatic runs](#8-automatic-runs)).
 
 ### While a run is going
 - **Progress** lists every stage (each source, filtering, Gemini scoring, digest) with what it is doing
@@ -170,6 +176,7 @@ All are in the `job-hunter` folder and git-ignored.
 | `digest.md` | The latest digest: scored jobs at `min_score`+. |
 | `.linkedin-profile/` | LinkedIn's own Chrome profile (cookies, sign-in if you used `--login`). |
 | `blocked/` | A screenshot whenever LinkedIn stops at a CAPTCHA/checkpoint, so you can see what happened. |
+| `schedule.json` | Your automatic-run setting from the page, and when the last run started. |
 | `.env` | Your Gemini key. Never share or commit it. |
 
 ---
@@ -190,11 +197,17 @@ All are in the `job-hunter` folder and git-ignored.
 
 ---
 
-## 8. Daily use (optional)
+## 8. Automatic runs
 
-`run_daily.bat` runs a hunt without the web page and appends the output to `run.log`. You can schedule it
-with Windows Task Scheduler, e.g. at 9:00 and 18:00:
-```bash
-schtasks /create /tn JobHunterMorning /tr "C:\path\to\job-hunter\run_daily.bat" /sc daily /st 09:00
-```
-Results show up in the web page the next time you open it.
+At the top of the page, tick **Run automatically every** and pick how often (3–24 hours; 6 is the default).
+The status line shows when the next automatic run is. The setting is saved in `schedule.json` and kept
+across restarts.
+
+- The next run is counted from when the last run **started**, including runs you start with **Re-run**.
+- When Job Hunter starts (for example after Windows boots) and a run is overdue, it waits 2 minutes for
+  the internet connection, then runs. If the last run was recent, it waits for the normal time.
+- It only runs while Job Hunter is running and the PC is awake.
+
+**Start Job Hunter with Windows:** put a shortcut to `start_ui.bat` in your Startup folder (press
+Win+R, type `shell:startup`, Enter). It starts when you sign in, so it needs automatic sign-in to run
+after a reboot with nobody at the PC.

@@ -20,6 +20,7 @@ import sys
 import time
 from urllib.parse import quote_plus
 
+from .db import job_key
 from .filtering import match_profiles
 from .models import Job
 
@@ -266,17 +267,23 @@ def _launch(pw, opts):
 last_block = None  # why the last search() stopped early, if it did
 
 
-def search(cfg, seen=None, on_step=None, revisit=None):
+REPEAT_NOTE = "not opened: same title and company as a job already read"
+
+
+def search(cfg, seen=None, on_step=None, revisit=None, known=None):
     """Run the configured searches; return list[Job]. Stops LinkedIn for the run on any block.
 
     on_step(text) is called with a short description of what it's doing, for the progress view.
-    revisit: earlier jobs left queued/preliminary, as dicts (url, title, company, posted); reopened by URL."""
+    revisit: earlier jobs left queued/preliminary, as dicts (url, title, company, posted); reopened by URL.
+    known(title, company): True if that job was already read. Such cards, and cards repeating one already
+    picked in this run, aren't opened; the pipeline copies the score from the job that was read."""
     from playwright.sync_api import sync_playwright
 
     global last_block, PACE
     last_block = None
     step = on_step or (lambda text: None)
-    opts, seen = _opts(cfg), seen or (lambda url: False)
+    opts, seen, known = _opts(cfg), seen or (lambda url: False), known or (lambda title, company: False)
+    picked_keys = set()  # job_key of every posting opened (or about to be) in this run
     PACE = float(opts["pace"])
     queries = random.sample(opts["queries"], min(_limit(opts["max_queries_per_run"]), len(opts["queries"])))
     per_query, per_run = _limit(opts["max_jobs_per_query"]), _limit(opts["max_jobs_per_run"])
@@ -299,8 +306,15 @@ def search(cfg, seen=None, on_step=None, revisit=None):
                 if not m:
                     continue
                 jid = m.group(1)
-                step(f"revisiting earlier queued/preliminary job {n} of {len(todo)}")
                 card = {"title": r["title"], "company": r["company"] or "", "location": "", "posted": r["posted"] or ""}
+                key = job_key(card["title"], card["company"])
+                if known(card["title"], card["company"]) or (key and key in picked_keys):
+                    jobs.append(card_job("linkedin", job_url(jid), card, "queued", REPEAT_NOTE))
+                    done.add(jid)
+                    continue
+                if key:
+                    picked_keys.add(key)
+                step(f"revisiting earlier queued/preliminary job {n} of {len(todo)}")
                 page.goto(job_url(jid), wait_until="domcontentloaded")
                 job = read_posting(page, jid, card)
                 jobs.append(job)
@@ -342,6 +356,12 @@ def search(cfg, seen=None, on_step=None, revisit=None):
                     # Only click postings whose title matches a profile keyword; search engines
                     # fuzz terms like "X++" into "C++", and every extra click is extra exposure.
                     if match_profiles(Job("", c["title"], "", ""), cfg):
+                        key = job_key(c["title"], c["company"])
+                        if known(c["title"], c["company"]) or (key and key in picked_keys):
+                            jobs.append(card_job("linkedin", job_url(jid), c, "queued", REPEAT_NOTE))
+                            continue
+                        if key:
+                            picked_keys.add(key)
                         fresh.append(jid)
                     else:
                         jobs.append(card_job("linkedin", job_url(jid), c, "skipped",

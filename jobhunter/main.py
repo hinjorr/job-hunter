@@ -7,7 +7,7 @@ import yaml
 
 from .db import DB, KEYWORD_MISS
 from .filtering import match_profiles
-from .notify import build_digest, send_telegram
+from .notify import build_digest, send_all
 from .progress import NULL
 from .scoring import score_job
 from .sources import LABELS, enabled, fetch_all
@@ -52,11 +52,15 @@ def run(config_path="config.yaml", db_path="jobs.db", progress=NULL):
         """Filter, save and score one source's jobs as soon as it's fetched, so the UI fills in during the run.
         Every job is saved with a status and reason, so it's clear why each was or wasn't scored."""
         progress.update("filter", "running")
-        for j in jobs:
+        # Read postings first, so a card that repeats one read in this same run finds its twin saved.
+        for j in sorted(jobs, key=lambda j: not j.description):
             if db.seen(j.url):
                 counts["already seen"] += 1
                 continue
-            if j.status == "queued" and not j.description and match_profiles(j, cfg):
+            if j.status in ("", "queued") and db.copy_twin(j):
+                # Same title and company as a job already read: no opening, no Gemini call, not re-sent.
+                counts["repeat"] += 1
+            elif j.status == "queued" and not j.description and match_profiles(j, cfg):
                 # A matching card a browser source didn't open: score what the card shows.
                 if counts["prelim"] < card_cap:
                     note = j.reason
@@ -85,12 +89,15 @@ def run(config_path="config.yaml", db_path="jobs.db", progress=NULL):
                     counts["queued"] += 1
             db.save(j)
         progress.update("filter", detail=f"{counts['skipped']} skipped, {counts['queued']} queued, "
-                                         f"{counts['already seen']} already seen (after {LABELS.get(name, name)})")
+                                         f"{counts['already seen']} already seen, {counts['repeat']} repeats "
+                                         f"(after {LABELS.get(name, name)})")
 
-    fetch_all(cfg, seen=db.seen, progress=progress, on_source=handle, pending=db.pending)
+    fetch_all(cfg, seen=db.seen, progress=progress, on_source=handle, pending=db.pending,
+              known=lambda title, company: db.scored_twin(title, company) is not None)
     logging.info("run counts: %s", dict(counts))
     progress.update("filter", "done", f"{counts['skipped']} skipped, {counts['queued']} queued, "
-                                      f"{counts['already seen']} already seen")
+                                      f"{counts['already seen']} already seen, "
+                                      f"{counts['repeat']} repeats of jobs already read (not re-scored)")
     progress.update("score", "done", f"{counts['scored']} scored, {counts['prelim']} preliminary (card only), "
                                      f"{len(good)} at {min_score}+")
 
@@ -98,7 +105,7 @@ def run(config_path="config.yaml", db_path="jobs.db", progress=NULL):
     digest = build_digest(good)
     open("digest.md", "w", encoding="utf-8").write(digest)
     if good:
-        send_telegram(digest)
+        send_all(digest)
     progress.update("digest", "done", "digest.md written")
     print(digest)
 

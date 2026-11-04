@@ -16,7 +16,7 @@ Reference repos reviewed:
 | LinkedIn scraping | Not done. Violates LinkedIn's terms and risks banning your account. Use LinkedIn job-alert emails and Google-indexed posts instead. |
 | Messaging recruiters/CEOs | Tool researches and drafts personalised messages; **you review and send manually** (~15-20/day). No automated DMs. |
 | AI scoring | Gemini free tier (no Anthropic key needed). |
-| Hosting | Runs on **your own PC** (home IP, not blocked by sites). GitHub Actions workflow also included as optional. |
+| Hosting | Runs on **your own PC** (home IP, not blocked by sites), started from the Windows Startup folder. |
 
 ## 3. What is built (branch `claude/zen-cori-9isegx`)
 ```
@@ -27,9 +27,7 @@ jobhunter/scoring.py     Gemini scores each posting 0-100 (+ one-line reason); k
 jobhunter/db.py          SQLite (jobs.db) so you never see the same posting twice
 jobhunter/notify.py      builds digest.md, optional Telegram message
 jobhunter/main.py        pipeline: fetch -> dedupe -> filter -> score -> digest; loads .env
-tests/                   4 passing tests (filtering, digest ordering)
-.github/workflows/hunt.yml   optional daily cloud run
-run_daily.bat            Windows scheduler entry point
+tests/                   tests (filtering, digest ordering, Discord, schedule)
 ```
 Pipeline: **collect -> dedupe -> keyword filter -> Gemini score -> digest (+Telegram)**.
 A failing source is logged and skipped; it never stops the run.
@@ -54,15 +52,9 @@ Run:
 python -m jobhunter.main           # prints digest and writes digest.md
 python -m pytest                   # run tests
 ```
-Schedule daily:
-- Windows: `schtasks /create /tn JobHunter /tr "C:\path\to\job-hunter\run_daily.bat" /sc daily /st 09:00`
-- Mac/Linux: `0 9 * * * cd /path/to/job-hunter && .venv/bin/python -m jobhunter.main >> run.log 2>&1`
+Automatic runs: set "Run automatically every N hours" in the web page (see USER_GUIDE.md section 8).
 
 Tuning: edit `config.yaml` (keywords, `min_score`, `max_new_per_run`, sources, `candidate_summary`).
-
-Optional cloud run: add `GEMINI_API_KEY` (and Telegram) as repo secrets, merge the branch to the
-default branch, then Actions -> job-hunt -> Run workflow. Note `jobs.db` is gitignored now, so
-delete the commit-back step in `hunt.yml` or the cloud run will not remember seen jobs.
 
 ## 5. Known caveats
 - Fetchers were **not tested live** (the build sandbox blocks job sites). Expect to fix small
@@ -77,5 +69,4 @@ delete the commit-back step in `hunt.yml` or the cloud run will not remember see
 4. **Recruiter/CEO outreach assistant**: build a target list and have Gemini draft a personalised message per person; you send it manually.
 5. **Application tracker**: mark jobs applied / replied / interview, avoid double-contacting.
 6. **More sources**: Himalayas, Adzuna/Jooble APIs, Google-search of LinkedIn posts.
-7. **Email digest option** (besides Telegram) and a simple dashboard (optional).
-8. Clean up the GitHub Actions workflow (persist `jobs.db` properly) if you want cloud runs.
+7. **Email digest option** (besides Telegram and Discord).

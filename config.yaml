@@ -19,12 +19,13 @@ candidate_summary: |
   files), solution design (FDD/IDD/TDD), Azure DevOps build/release management, and AI in ERP
   (MCP servers, Copilot / Copilot Studio for D365). 15+ client projects for US, Canada and UK.
   Based in Karachi, Pakistan: looking for remote D365 F&O or Business Central developer/technical
-  consultant/solution architect roles, full-time, contract or freelance.
-  Score low: Dynamics 365 CE/CRM/Sales-only roles, purely functional roles with no development,
+  consultant roles, full-time, contract or freelance.
+  Score low: architect roles (solution, enterprise, technical or functional architect),
+  Dynamics 365 CE/CRM/Sales-only roles, purely functional roles with no development,
   non-Microsoft ERPs (SAP, Oracle, NetSuite), general .NET/web roles, and on-site-only roles
   outside Pakistan.
 
-min_score: 60          # 0-100, only jobs at/above this go in the digest
+min_score: 60         # 0-100, only jobs at/above this go in the digest
 max_new_per_run: 300   # cap on full Gemini scores per run (extra are queued for the next run)
 max_age_days: 30       # drop postings older than this (when the source gives a date)
 max_card_scores_per_run: 60  # Gemini scores for matching cards not opened (title/company/location only)
@@ -52,7 +53,6 @@ sources:
       - D365 F&O technical consultant
       - Dynamics 365 X++ developer
       - Dynamics NAV developer
-      - Dynamics 365 solution architect
     location: Worldwide
     remote_only: true
     posted_within_hours: 24
@@ -61,5 +61,5 @@ sources:
     max_jobs_per_run: 0        # 0 = no limit
     max_cards_per_search: 300  # stop loading more result pages after this many cards
     revisit_pending: true      # reopen jobs left queued/preliminary by earlier runs
-    pace: 0.5                  # multiplies every pause; 1.0 = slow and person-like, 0.3 = fast
+    pace: 0.1                  # multiplies every pause; 1.0 = slow and person-like, 0.3 = fast. 0.1 = speed test (was 0.5)
     headless: false            # a visible window looks like normal use; headless is easier to detect

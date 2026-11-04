@@ -2,8 +2,8 @@ __pycache__/
 .venv/
 digest.md
 .env
-run.log
 jobs.db
 .linkedin-profile/
 jobs.db.bak
 blocked/
+schedule.json

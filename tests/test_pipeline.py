@@ -29,3 +29,31 @@ def test_every_job_gets_a_status_and_reason(tmp_path, monkeypatch):
     assert rows["u3"] == ("skipped", "title miss")
     assert rows["u4"] == ("skipped", KEYWORD_MISS)
     assert rows["u5"][0] == "skipped" and "older than" in rows["u5"][1]
+
+
+def test_repeats_copy_the_score_without_scoring_again(tmp_path, monkeypatch):
+    jobs = [
+        # A card repeating a posting read in the same run, listed before it: still resolved.
+        Job("linkedin", "Business Central Developer", "Acme · Paris", "r2", status="queued", reason="repeat"),
+        Job("linkedin", "Business Central Developer", "Acme · London", "r1", "AL extensions work"),
+        Job("remotive", "business central developer!", "ACME", "r3", "same job elsewhere"),
+        Job("remotive", "Business Central Developer", "Other Co", "r4", "different company"),
+    ]
+    cfg_path = os.path.abspath("config.yaml")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(m, "fetch_all", lambda cfg, seen, progress, on_source, **kw: on_source("linkedin", jobs))
+    scored = []
+
+    def fake_score(j, cfg):
+        scored.append(j.url)
+        j.score, j.reason = 80, "fit"
+    monkeypatch.setattr(m, "score_job", fake_score)
+    sent = []
+    monkeypatch.setattr(m, "send_all", sent.append)
+
+    m.run(config_path=cfg_path, db_path=str(tmp_path / "t.db"))
+    rows = {r[0]: r[1:] for r in sqlite3.connect(tmp_path / "t.db").execute("SELECT url, status, score, reason FROM jobs")}
+    assert sorted(scored) == ["r1", "r4"]  # Gemini only for the first Acme posting and the other company
+    for u in ("r2", "r3"):
+        assert rows[u][:2] == ("scored", 80) and rows[u][2].startswith("REPEAT") and rows[u][2].endswith("fit")
+    assert "r2" not in sent[0] and "r3" not in sent[0]  # repeats aren't sent again in the digest
