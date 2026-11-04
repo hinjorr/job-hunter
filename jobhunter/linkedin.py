@@ -233,24 +233,17 @@ def read_posting(target, jid, card):
     return Job("linkedin", title, company, job_url(jid), desc, posted=card["posted"])
 
 
-def open_job(page, ctx, jid, card):
-    """Click a job card like a person would and read the posting."""
-    dismiss_signin(page)  # the pop-up can come back on the results page and swallow the click
-    el = page.locator(f'a[href*="/jobs/view/"][href*="{jid}"]').first
-    before = len(ctx.pages)
-    if not el.count() or not click(page, el):
-        return card_job("linkedin", job_url(jid), card, "queued", "couldn't click the card; retried next run")
-    pause(2, 4)
-    target = ctx.pages[-1] if len(ctx.pages) > before else page  # card may open a new tab
+def open_job(reader, jid, card):
+    """Read a posting in the separate reader tab. Clicking cards on the results page and coming back
+    reloaded the list and dropped every card loaded by scrolling, so later cards couldn't be found."""
     try:
-        return read_posting(target, jid, card)
-    finally:
-        if target is not page:
-            target.close()
-            pause(1, 3)
-        elif "/jobs/view/" in page.url:
-            page.go_back(wait_until="domcontentloaded")
-            pause(2, 5)
+        reader.goto(job_url(jid), wait_until="domcontentloaded")
+    except Blocked:
+        raise
+    except Exception as e:
+        return card_job("linkedin", job_url(jid), card, "queued",
+                        f"page didn't load ({e.__class__.__name__}); retried next run")
+    return read_posting(reader, jid, card)
 
 
 def _opts(cfg):
@@ -356,12 +349,16 @@ def search(cfg, seen=None, on_step=None, revisit=None):
                 log.info("linkedin %r: %d cards, %d new with matching titles, opening %d", q, len(cards), len(fresh),
                          len(picks))
                 pending = list(picks)
+                reader = ctx.new_page() if picks else None  # keeps the results page (and its loaded cards) intact
                 for n, jid in enumerate(picks, 1):
                     step(f"{where}: reading job {n} of {len(picks)} ({len(cards)} results, {len(fresh)} new matching)")
-                    job = open_job(page, ctx, jid, cards[jid])
+                    job = open_job(reader, jid, cards[jid])
+                    pause(1, 3)
                     pending.remove(jid)
                     jobs.append(job)
                     opened += job.status != "queued"
+                if reader:
+                    reader.close()
         except Blocked as e:
             last_block = str(e)
             log.warning("linkedin stopped: checkpoint/sign-in wall (%s). Not bypassing; try again later.", e)
